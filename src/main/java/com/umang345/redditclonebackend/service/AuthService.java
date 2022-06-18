@@ -1,5 +1,7 @@
 package com.umang345.redditclonebackend.service;
 
+import com.umang345.redditclonebackend.dto.AuthenticationResponse;
+import com.umang345.redditclonebackend.dto.LoginRequest;
 import com.umang345.redditclonebackend.dto.RegisterRequest;
 import com.umang345.redditclonebackend.exceptions.SpringRedditException;
 import com.umang345.redditclonebackend.model.NotificationEmail;
@@ -7,10 +9,15 @@ import com.umang345.redditclonebackend.model.User;
 import com.umang345.redditclonebackend.model.VerificationToken;
 import com.umang345.redditclonebackend.repository.UserRepository;
 import com.umang345.redditclonebackend.repository.VerificationTokenRepository;
+import com.umang345.redditclonebackend.security.JwtProvider;
 import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,6 +47,12 @@ public class AuthService
 
     @Autowired
     private MailService mailService;
+
+    @Autowired
+    private AuthenticationManager authenticationManager;
+
+    @Autowired
+    private JwtProvider jwtProvider;
 
     @Value("${server.port}")
     private String port;
@@ -92,6 +105,11 @@ public class AuthService
         return token;
     }
 
+    /***
+     * Method to verify if the verification token exists and is valid
+     *
+     * @param token : the verification token to be verified
+     */
     @Transactional
     public void verifyAccount(String token)
     {
@@ -105,6 +123,11 @@ public class AuthService
         fetchUserAndEnable(verificationToken.get());
     }
 
+    /***
+     * Method to enable user after verification token is checked to be valid
+     *
+     * @param verificationToken : Contains verification token and user details
+     */
     @Transactional
     private void fetchUserAndEnable(VerificationToken verificationToken)
     {
@@ -113,5 +136,22 @@ public class AuthService
                       .orElseThrow(()-> new SpringRedditException("User not found with name : "+username));
         user.setEnabled(true);
         userRepository.save(user);
+    }
+
+    /***
+     * Service method to authenticate login request from user
+     *
+     * @param loginRequest : Contains username and password for login
+     * @return
+     */
+    public AuthenticationResponse login(LoginRequest loginRequest)
+    {
+        Authentication authenticate = authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(
+                loginRequest.getUsername(),
+                loginRequest.getPassword()
+        ));
+        SecurityContextHolder.getContext().setAuthentication(authenticate);
+        String token = jwtProvider.generateToken(authenticate);
+        return new AuthenticationResponse(token,loginRequest.getUsername());
     }
 }
