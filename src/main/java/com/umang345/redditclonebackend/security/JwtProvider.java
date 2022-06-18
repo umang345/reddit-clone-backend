@@ -1,7 +1,9 @@
 package com.umang345.redditclonebackend.security;
 
+import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
@@ -10,7 +12,10 @@ import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.stereotype.Service;
 
 import java.security.*;
+import java.security.interfaces.RSAPublicKey;
 import java.time.Instant;
+
+import static io.jsonwebtoken.Jwts.parser;
 
 /***
  * Contains service methods for generating JWT Token
@@ -24,6 +29,9 @@ public class JwtProvider
     private Long jwtExpirationInMillis;
 
      private KeyStore keyStore;
+
+    @Value("${jwt.public.key}")
+    RSAPublicKey publicKey;
 
 
 
@@ -52,5 +60,21 @@ public class JwtProvider
     public Long getJwtExpirationInMillis() {
         return jwtExpirationInMillis;
     }
+
+    public boolean validateToken(String jwt)
+    {
+        parser().setSigningKey(publicKey).parseClaimsJws(jwt);
+        return true;
+    }
+
+    public String getUsernameFromJwt(String jwt){
+        Claims claims = parser()
+                .setSigningKey(publicKey)
+                .parseClaimsJws(jwt)
+                .getBody();
+
+        return claims.getSubject();
+    }
+
 }
 

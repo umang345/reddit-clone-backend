@@ -6,10 +6,13 @@ import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
 import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.SecurityContext;
+import com.umang345.redditclonebackend.security.JwtAuthenticationFilter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.BeanIds;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
@@ -24,6 +27,7 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
@@ -32,11 +36,14 @@ import java.security.interfaces.RSAPublicKey;
  * Security Configuration for Backend
  */
 @EnableWebSecurity
-@Configuration
 public class SecurityConfig extends WebSecurityConfigurerAdapter
 {
     @Autowired
     private UserDetailsService userDetailsService;
+
+    @Autowired
+    @Lazy
+    private JwtAuthenticationFilter jwtAuthenticationFilter;
 
     @Value("${jwt.public.key}")
     RSAPublicKey publicKey;
@@ -50,8 +57,11 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter
                     .authorizeRequests()
                     .antMatchers("/api/auth/**")
                     .permitAll()
+                    .antMatchers(HttpMethod.GET,"/api/subreddit")
+                    .permitAll()
                     .anyRequest()
                     .authenticated();
+        httpSecurity.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
     }
 
     /***
