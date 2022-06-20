@@ -2,6 +2,7 @@ package com.umang345.redditclonebackend.service;
 
 import com.umang345.redditclonebackend.dto.AuthenticationResponse;
 import com.umang345.redditclonebackend.dto.LoginRequest;
+import com.umang345.redditclonebackend.dto.RefreshTokenRequest;
 import com.umang345.redditclonebackend.dto.RegisterRequest;
 import com.umang345.redditclonebackend.exceptions.SpringRedditException;
 import com.umang345.redditclonebackend.model.NotificationEmail;
@@ -56,6 +57,9 @@ public class AuthService
 
     @Autowired
     private JwtProvider jwtProvider;
+
+    @Autowired
+    private RefreshTokenService refreshTokenService;
 
     @Value("${server.port}")
     private String port;
@@ -155,7 +159,23 @@ public class AuthService
         ));
         SecurityContextHolder.getContext().setAuthentication(authenticate);
         String token = jwtProvider.generateToken(authenticate);
-        return new AuthenticationResponse(token,loginRequest.getUsername());
+        return AuthenticationResponse.builder()
+                .authenticationToken(token)
+                .refreshToken(refreshTokenService.generateRefreshToken().getToken())
+                .expiresAt(Instant.now().plusMillis(jwtProvider.getJwtExpirationInMillis()))
+                .username(loginRequest.getUsername())
+                .build();
+    }
+
+    public AuthenticationResponse refreshToken(RefreshTokenRequest refreshTokenRequest) {
+        refreshTokenService.validateRefreshToken(refreshTokenRequest.getRefreshToken());
+        String token = jwtProvider.generateTokenWithUserName(refreshTokenRequest.getUsername());
+        return AuthenticationResponse.builder()
+                .authenticationToken(token)
+                .refreshToken(refreshTokenRequest.getRefreshToken())
+                .expiresAt(Instant.now().plusMillis(jwtProvider.getJwtExpirationInMillis()))
+                .username(refreshTokenRequest.getUsername())
+                .build();
     }
 
     @Transactional(readOnly = true)
